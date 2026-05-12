@@ -179,19 +179,49 @@ cargo zigbuild --release --target aarch64-unknown-linux-musl
 ## 🏗️ Architecture
 
 ```
-src/
-├── main.rs          # Entry point, CLI handling, orchestration
-├── lib.rs           # Library root
+createrepo_rs/
+├── lib.rs           # Library root + prelude re-exports
+├── src/main.rs      # Binary entry point, CLI handling, orchestration
+├── cli/mod.rs       # Clap argument parser (52/55 params)
 ├── pool/mod.rs      # Parallel worker pool
-├── cli/mod.rs       # Clap argument parser (55 params)
-├── types/mod.rs     # Core types: Package, Dependency, RepomdRecord
 ├── rpm/mod.rs       # RPM header parsing via `rpm` crate
+├── types/mod.rs     # Core types: Package, Dependency, RepomdRecord
 ├── compression/     # gzip, bzip2, zstd, xz
+├── db/mod.rs        # SQLite database generation
 ├── xml/
-│   ├── dump/        # XML generation (primary, filelists, other, repomd)
-│   └── mod.rs
-└── walk/            # Directory traversal
+│   ├── error.rs     # XML error types
+│   ├── mod.rs       # XML helpers
+│   ├── parse.rs     # XML parsing
+│   └── repomd.rs    # repomd.xml generation
+└── walk/mod.rs      # Directory traversal
 ```
+
+## 📚 Library Usage
+
+`createrepo_rs` can also be used as a library:
+
+```toml
+[dependencies]
+createrepo_rs = { git = "https://github.com/jamesarch/createrepo_rs" }
+```
+
+```rust
+use std::path::Path;
+use createrepo_rs::prelude::*;
+
+let mut reader = RpmReader::open(Path::new("my-package.rpm")).unwrap();
+let pkg = reader.read_package().unwrap();
+println!("{} {}-{}", pkg.name, pkg.version, pkg.release);
+```
+
+The [`prelude`] module re-exports commonly used types and functions:
+- Compression: `gzip_compress`, `gzip_decompress`, `zstd_compress`, `zstd_decompress`, etc.
+- Types: `Package`, `Dependency`, `ChecksumType`, `CompressionType`, `ChangelogEntry`
+- RPM: `RpmReader`, `parse_dep_version`
+- DB: `RepomdDb`, `DbError`
+- Pool: `WorkerPool`, `Job`, `ProcessingResult`
+- XML: `XmlError`
+- Walk: `DirectoryWalker`, `WalkError`
 
 ## 📝 License
 
