@@ -28,7 +28,8 @@ fn main() {
 fn chrono_now() -> Option<String> {
     // Use the system date command for portability, avoiding chrono dep in build.rs
     let output = Command::new("date")
-        .args(["-u", "+%Y-%m-%dT%H:%M:%SZ"])
+        .env("TZ", "Asia/Shanghai")
+        .args(["+%Y-%m-%dT%H:%M:%S"])
         .output()
         .ok()?;
     if output.status.success() {
