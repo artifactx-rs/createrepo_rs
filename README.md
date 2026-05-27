@@ -66,6 +66,43 @@ createrepo_rs /srv/repo/ \
   --verbose
 ```
 
+### Docker
+
+```bash
+# Docker Hub
+docker run --rm -v /path/to/rpms:/data jamesarch/createrepo-rs /data
+
+# GitHub Container Registry
+docker run --rm -v /path/to/rpms:/data ghcr.io/jamesarch/createrepo-rs /data
+
+# Full options example
+docker run --rm -v /srv/repo:/data jamesarch/createrepo-rs /data \
+  --baseurl=https://mirrors.example.com/repo \
+  --compress-type=zstd \
+  --verbose
+
+# Specific version
+docker run --rm -v /path/to/rpms:/data jamesarch/createrepo-rs:0.1.9 /data
+```
+
+### CI/CD Integration
+
+```yaml
+# GitHub Actions — generate repo metadata after building RPMs
+- name: Generate RPM repository metadata
+  uses: docker://ghcr.io/jamesarch/createrepo-rs:latest
+  with:
+    args: ./rpms --baseurl=https://repo.example.com --compress-type=zstd
+```
+
+```yaml
+# GitLab CI
+generate-repodata:
+  image: jamesarch/createrepo-rs:latest
+  script:
+    - createrepo_rs ./rpms --baseurl=https://repo.example.com
+```
+
 ## 📊 Performance
 
 Benchmarks on Zabbix production server (Debian 13, 80-core, 254 RPMs):
