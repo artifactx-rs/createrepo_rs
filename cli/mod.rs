@@ -266,6 +266,11 @@ pub struct Cli {
     /// it will be forcefully terminated (0 = no timeout).
     #[arg(long)]
     pub timeout: Option<u64>,
+
+    /// Dump package manifest as JSON lines (name, version, arch, signed)
+    /// to stdout and exit. Does not generate repodata.
+    #[arg(long)]
+    pub dump_manifest: bool,
 }
 
 impl Cli {

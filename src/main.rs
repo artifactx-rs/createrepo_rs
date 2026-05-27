@@ -48,6 +48,11 @@ fn main() -> ExitCode {
     .expect("Error setting Ctrl-C handler");
 
     let cli = Cli::parse_args();
+
+    if cli.dump_manifest {
+        return dump_manifest(&cli);
+    }
+
     let repo_path = &cli.path;
     let output_dir = cli.outputdir.as_ref().unwrap_or(repo_path);
 
@@ -1209,6 +1214,69 @@ fn parse_age_duration(s: &str) -> Option<std::time::Duration> {
     } else {
         None
     }
+}
+
+/// Walk the repository directory and dump a JSON-lines manifest of every
+/// RPM found.  Each line contains the package name, version, arch, and
+/// whether the package is cryptographically signed.
+fn dump_manifest(cli: &Cli) -> ExitCode {
+    use createrepo_rs::rpm::RpmReader;
+
+    let repo_path = &cli.path;
+    if !repo_path.exists() || !repo_path.is_dir() {
+        eprintln!(
+            "Error: Directory '{}' does not exist or is not a directory",
+            repo_path.display()
+        );
+        return ExitCode::from(1);
+    }
+
+    let exclude_patterns = cli.exclude_patterns();
+    let mut walker = match createrepo_rs::walk::DirectoryWalker::new(repo_path) {
+        Ok(w) => w,
+        Err(e) => {
+            eprintln!("Error creating directory walker: {e}");
+            return ExitCode::from(1);
+        }
+    };
+
+    if !exclude_patterns.is_empty() {
+        walker = match walker.exclude_patterns(exclude_patterns) {
+            Ok(w) => w,
+            Err(e) => {
+                eprintln!("Error with exclude patterns: {e}");
+                return ExitCode::from(1);
+            }
+        };
+    }
+    walker = walker.skip_symlinks(cli.skip_symlinks);
+
+    let rpm_files: Vec<PathBuf> = walker.collect();
+    if rpm_files.is_empty() {
+        eprintln!("Error: No packages found in directory");
+        return ExitCode::from(1);
+    }
+
+    for path in &rpm_files {
+        let mut reader = match RpmReader::open(path) {
+            Ok(r) => r,
+            Err(_) => continue,
+        };
+
+        let pkg = match reader.read_package() {
+            Ok(p) => p,
+            Err(_) => continue,
+        };
+
+        let signed = reader.is_signed();
+
+        println!(
+            "{{\"name\":\"{}\",\"version\":\"{}\",\"arch\":\"{}\",\"signed\":{}}}",
+            pkg.name, pkg.version, pkg.arch, signed
+        );
+    }
+
+    ExitCode::from(0)
 }
 
 fn copy_dir_all(src: &Path, dst: &Path) -> Result<(), std::io::Error> {

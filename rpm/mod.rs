@@ -323,6 +323,27 @@ impl RpmReader {
         compute_sha256(&self.path)
     }
 
+    /// Check whether this RPM is cryptographically signed.
+    ///
+    /// Returns true if the signature header contains a PGP, RSA, or DSA
+    /// signature entry.
+    #[must_use]
+    pub fn is_signed(&self) -> bool {
+        let Ok(metadata) = rpm_crate::PackageMetadata::open(&self.path) else {
+            return false;
+        };
+        use rpm_crate::IndexSignatureTag;
+        metadata
+            .signature
+            .entry_is_present(IndexSignatureTag::RPMSIGTAG_PGP)
+            || metadata
+                .signature
+                .entry_is_present(IndexSignatureTag::RPMSIGTAG_RSA)
+            || metadata
+                .signature
+                .entry_is_present(IndexSignatureTag::RPMSIGTAG_DSA)
+    }
+
     #[must_use]
     pub fn path(&self) -> &Path {
         &self.path
