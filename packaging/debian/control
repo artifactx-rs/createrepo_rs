@@ -1,0 +1,33 @@
+Source: createrepo-rs
+Section: admin
+Priority: optional
+Maintainer: jamesarch <https://github.com/jamesarch>
+Build-Depends:
+ debhelper-compat (= 13),
+ cargo,
+ rustc (>= 1.76),
+ pkg-config,
+Standards-Version: 4.7.0
+Homepage: https://github.com/jamesarch/createrepo_rs
+Vcs-Git: https://github.com/jamesarch/createrepo_rs.git
+Rules-Requires-Root: no
+
+Package: createrepo-rs
+Architecture: any
+Depends:
+ ${shlibs:Depends},
+ ${misc:Depends},
+Description: Pure Rust RPM repository metadata generator
+ createrepo-rs is a pure Rust implementation of createrepo_c that generates
+ RPM repository metadata (repodata). It produces dnf/yum-compatible output
+ as a drop-in replacement for createrepo_c, with zero FFI dependencies and
+ a single static binary.
+ .
+ Features:
+  - primary.xml, filelists.xml, other.xml, repomd.xml generation
+  - In-memory SQLite with atomic VACUUM INTO disk flush
+  - Parallel RPM parsing (auto-detects CPU count)
+  - --dump-manifest for package inventory + signature detection
+  - --timeout watchdog for stuck I/O (network mounts)
+  - Incremental mode with --update
+  - Compression: gzip, zstd, xz, bzip2

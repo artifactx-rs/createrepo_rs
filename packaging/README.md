@@ -9,10 +9,12 @@ Distribution packaging files for createrepo_rs.
 | Fedora COPR | P0 | Low | RPM ecosystem home | Spec ready |
 | Arch AUR | P0 | Low | Easy entry, good visibility | PKGBUILD ready |
 | Homebrew | P1 | Low | macOS devs, CI/CD | Formula ready |
+| Debian/Ubuntu | P1 | Medium | ~40% Linux market share | debian/ ready |
+| Nix/NixOS | P1 | Low | Growing community, reproducible | flake ready |
+| Gentoo | P2 | Low | Source-based distro | Ebuild ready |
 | Fedora Official | P1 | Medium | Official RPM distro | Needs review |
 | EPEL | P1 | Medium | RHEL/Alma/Rocky users | Same spec |
 | openSUSE OBS | P2 | Low | Multi-distro via one spec | Same spec |
-| Debian/Ubuntu | P3 | High | Different packaging format | Not started |
 
 ## Per-Distro Guide
 
@@ -100,9 +102,58 @@ cp packaging/rpm/createrepo-rs.spec home:yourusername/createrepo-rs/
 osc commit -m "Initial import"
 ```
 
-### Debian/Ubuntu (P3 — future work)
+### Debian/Ubuntu (P1 — debian/ ready)
 
-Needs `debian/` directory with control, rules, changelog. Not started — PRs welcome.
+```bash
+# Build the package
+sudo apt install debhelper cargo rustc
+dpkg-buildpackage -us -uc -b
+
+# Or use sbuild/pbuilder for clean chroot builds
+# Submit to Debian via mentors.debian.net
+# Ubuntu: request sync from Debian or upload to PPA
+
+# Users install via:
+# sudo apt install ./createrepo-rs_0.1.8-1_amd64.deb
+```
+
+For official Debian inclusion:
+1. Create an account on mentors.debian.net
+2. Upload the package and file an ITP (Intent to Package) bug
+3. Find a Debian Developer (DD) to sponsor the upload
+
+### Nix/NixOS (P1 — flake ready)
+
+```bash
+# Test build
+nix-build -E '(import <nixpkgs> {}).callPackage ./packaging/nix/default.nix {}'
+
+# Using flakes
+nix build .#createrepo-rs
+
+# Fill in sha256 and cargoHash after first build attempt:
+# 1. Run nix-build, it will fail showing the expected hash
+# 2. Copy the hash into default.nix
+
+# Submit to nixpkgs: PR adding pkgs/tools/package-management/createrepo-rs/
+```
+
+Users install via: `nix profile install github:jamesarch/createrepo_rs` or from nixpkgs after merge.
+
+### Gentoo (P2 — ebuild ready)
+
+```bash
+# Install from local overlay
+mkdir -p /var/db/repos/local/app-admin/createrepo-rs
+cp packaging/gentoo/app-admin/createrepo-rs/* /var/db/repos/local/app-admin/createrepo-rs/
+ebuild /var/db/repos/local/app-admin/createrepo-rs/createrepo-rs-0.1.8.ebuild manifest
+emerge --ask app-admin/createrepo-rs
+
+# Submit to ::gentoo via PR (or to ::guru for new packages)
+# GURU overlay is the easier entry point for new Gentoo packages
+```
+
+Users install via: `emerge app-admin/createrepo-rs` (from GURU overlay first, then official ::gentoo).
 
 ## Releasing a New Version
 
@@ -110,5 +161,8 @@ Needs `debian/` directory with control, rules, changelog. Not started — PRs we
    - `packaging/rpm/createrepo-rs.spec`: Version + changelog
    - `packaging/aur/PKGBUILD`: pkgver + sha256sums
    - `packaging/homebrew/createrepo-rs.rb`: url + sha256
+   - `packaging/debian/changelog`: new version entry (`dch -v`)
+   - `packaging/nix/default.nix`: version + sha256
+   - `packaging/gentoo/.../createrepo-rs-X.Y.Z.ebuild`: new ebuild
 2. Push release tag → GitHub Actions builds binary
-3. Update COPR build / AUR PKGBUILD / Homebrew formula
+3. Update COPR / AUR / Homebrew / Debian / Nix / Gentoo
