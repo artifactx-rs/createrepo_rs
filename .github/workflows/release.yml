@@ -52,6 +52,101 @@ jobs:
           strip target/x86_64-unknown-linux-musl/release/createrepo_rs
           cp target/x86_64-unknown-linux-musl/release/createrepo_rs createrepo_rs-x86_64-unknown-linux-musl
 
+      - name: Build .deb package
+        run: |
+          VERSION="${{ inputs.tag || github.ref_name }}"
+          VERSION="${VERSION#v}"
+          DEB_NAME="createrepo-rs_${VERSION}_amd64"
+          DEB_ROOT="/tmp/${DEB_NAME}"
+
+          mkdir -p "${DEB_ROOT}/usr/bin"
+          mkdir -p "${DEB_ROOT}/usr/share/doc/createrepo-rs"
+          mkdir -p "${DEB_ROOT}/usr/share/licenses/createrepo-rs"
+          mkdir -p "${DEB_ROOT}/DEBIAN"
+
+          cp createrepo_rs-x86_64-unknown-linux-musl "${DEB_ROOT}/usr/bin/createrepo_rs"
+          cp README.md README_zh.md "${DEB_ROOT}/usr/share/doc/createrepo-rs/"
+          cp LICENSE "${DEB_ROOT}/usr/share/licenses/createrepo-rs/"
+
+          cat > "${DEB_ROOT}/DEBIAN/control" << EOFCTRL
+          Package: createrepo-rs
+          Version: ${VERSION}
+          Section: admin
+          Priority: optional
+          Architecture: amd64
+          Maintainer: jamesarch <han.shan@live.cn>
+          Homepage: https://github.com/jamesarch/createrepo_rs
+          Description: Pure Rust RPM repository metadata generator
+           createrepo-rs is a pure Rust implementation of createrepo_c that generates
+           RPM repository metadata (repodata). It produces dnf/yum-compatible output
+           as a drop-in replacement for createrepo_c, with zero FFI dependencies and
+           a single static binary.
+           .
+           Features:
+            - primary.xml, filelists.xml, other.xml, repomd.xml generation
+            - In-memory SQLite with atomic VACUUM INTO disk flush
+            - Parallel RPM parsing (auto-detects CPU count)
+            - --dump-manifest for package inventory + signature detection
+            - --timeout watchdog for stuck I/O (network mounts)
+            - Incremental mode with --update
+            - Compression: gzip, zstd, xz, bzip2
+          EOFCTRL
+
+          dpkg-deb --root-owner-group --build "${DEB_ROOT}" "${DEB_NAME}.deb"
+          echo "deb_file=${DEB_NAME}.deb" >> $GITHUB_ENV
+
+      - name: Build .rpm package
+        run: |
+          VERSION="${{ inputs.tag || github.ref_name }}"
+          VERSION="${VERSION#v}"
+          RPM_NAME="createrepo-rs-${VERSION}-1"
+
+          RPM_ROOT="/tmp/rpmbuild"
+          rm -rf "${RPM_ROOT}"
+          mkdir -p "${RPM_ROOT}"/{BUILD,RPMS,SOURCES,SPECS,SRPMS}
+
+          cp createrepo_rs-x86_64-unknown-linux-musl "${RPM_ROOT}/SOURCES/createrepo_rs"
+          cp README.md README_zh.md LICENSE "${RPM_ROOT}/SOURCES/"
+
+          cat > "${RPM_ROOT}/SPECS/createrepo-rs.spec" << EOFSPEC
+          Name:           createrepo-rs
+          Version:        ${VERSION}
+          Release:        1
+          Summary:        Pure Rust RPM repository metadata generator
+          License:        GPL-2.0-or-later
+          URL:            https://github.com/jamesarch/createrepo_rs
+
+          %description
+          createrepo-rs is a pure Rust implementation of createrepo_c that generates
+          RPM repository metadata (repodata). It produces dnf/yum-compatible output
+          as a drop-in replacement for createrepo_c, with zero FFI dependencies and
+          a single static binary.
+
+          %install
+          install -D -m 0755 %{_sourcedir}/createrepo_rs %{buildroot}/usr/bin/createrepo_rs
+          install -D -m 0644 %{_sourcedir}/README.md %{buildroot}/usr/share/doc/createrepo-rs/README.md
+          install -D -m 0644 %{_sourcedir}/README_zh.md %{buildroot}/usr/share/doc/createrepo-rs/README_zh.md
+          install -D -m 0644 %{_sourcedir}/LICENSE %{buildroot}/usr/share/licenses/createrepo-rs/LICENSE
+
+          %files
+          /usr/bin/createrepo_rs
+          %dir /usr/share/doc/createrepo-rs/
+          %doc /usr/share/doc/createrepo-rs/README.md
+          %doc /usr/share/doc/createrepo-rs/README_zh.md
+          %dir /usr/share/licenses/createrepo-rs/
+          %license /usr/share/licenses/createrepo-rs/LICENSE
+
+          %changelog
+          EOFSPEC
+
+          # Install rpm-build (already present on ubuntu-latest)
+          sudo apt-get install -y -qq rpm 2>&1 | tail -1
+          rpmbuild -bb --define "_topdir ${RPM_ROOT}" "${RPM_ROOT}/SPECS/createrepo-rs.spec"
+
+          RPM_FILE="${RPM_ROOT}/RPMS/x86_64/${RPM_NAME}.x86_64.rpm"
+          cp "${RPM_FILE}" .
+          echo "rpm_file=$(basename "${RPM_FILE}")" >> $GITHUB_ENV
+
       - name: Publish release
         uses: softprops/action-gh-release@v2
         with:
@@ -63,4 +158,7 @@ jobs:
             ## Changes in ${{ inputs.tag || github.ref_name }}
 
             See [commits](https://github.com/jamesarch/createrepo_rs/compare/${{ inputs.tag || github.ref_name }}...main) for full history.
-          files: createrepo_rs-x86_64-unknown-linux-musl
+          files: |
+            createrepo_rs-x86_64-unknown-linux-musl
+            ${{ env.deb_file }}
+            ${{ env.rpm_file }}
