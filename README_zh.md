@@ -48,12 +48,12 @@ yay -S createrepo-rs
 # 或：paru -S createrepo-rs
 
 # RHEL / CentOS (.rpm 直接下载)
-curl -LO https://github.com/jamesarch/createrepo_rs/releases/download/v0.1.8/createrepo-rs-0.1.8-1.el9.x86_64.rpm
-dnf install createrepo-rs-0.1.8-1.el9.x86_64.rpm
+curl -LO https://github.com/jamesarch/createrepo_rs/releases/download/v0.1.9/createrepo-rs-0.1.9-1.el9.x86_64.rpm
+dnf install createrepo-rs-0.1.9-1.el9.x86_64.rpm
 
 # Debian / Ubuntu (.deb)
-curl -LO https://github.com/jamesarch/createrepo_rs/releases/download/v0.1.8/createrepo-rs_0.1.8_amd64.deb
-dpkg -i createrepo-rs_0.1.8_amd64.deb
+curl -LO https://github.com/jamesarch/createrepo_rs/releases/download/v0.1.9/createrepo-rs_0.1.9_amd64.deb
+dpkg -i createrepo-rs_0.1.9_amd64.deb
 
 # 为 RPM 目录生成元数据
 createrepo_rs /path/to/rpms/

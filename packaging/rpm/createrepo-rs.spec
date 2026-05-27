@@ -1,5 +1,5 @@
 Name:           createrepo-rs
-Version:        0.1.8
+Version:        0.1.9
 Release:        1%{?dist}
 Summary:        Pure Rust RPM repository metadata generator
 
@@ -53,5 +53,5 @@ install -D -m 0755 target/release/createrepo_rs %{buildroot}%{_bindir}/createrep
 %doc README.md README_zh.md
 
 %changelog
-* Wed May 27 2026 jamesarch <han.shan@live.cn> - 0.1.8-1
+* Wed May 27 2026 jamesarch <han.shan@live.cn> - 0.1.9-1
 - Initial package

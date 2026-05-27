@@ -2,7 +2,7 @@
 # Contributor: jamesarch
 
 pkgname=createrepo-rs
-pkgver=0.1.8
+pkgver=0.1.9
 pkgrel=1
 pkgdesc="Pure Rust RPM repository metadata generator — dnf/yum-compatible, zero FFI, single static binary"
 arch=('x86_64' 'aarch64')

@@ -1,6 +1,6 @@
 [package]
 name = "createrepo_rs"
-version = "0.1.8"
+version = "0.1.9"
 edition = "2021"
 authors = ["jamesarch"]
 description = "🦀 Pure Rust RPM repository metadata generator — creates repodata for dnf/yum repos. Zero FFI, single static binary. Drop-in replacement for createrepo_c and createrepo."
