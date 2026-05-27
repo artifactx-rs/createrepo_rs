@@ -87,21 +87,46 @@ docker run --rm -v /path/to/rpms:/data jamesarch/createrepo-rs:0.1.9 /data
 
 ### CI/CD 集成
 
+CI 里可以选择 GHCR 或 Docker Hub。生产流水线建议固定版本号；如果希望始终使用最新发布版，可以用 `latest`。
+
 ```yaml
-# GitHub Actions — 构建 RPM 后生成仓库元数据
-- name: Generate RPM repository metadata
-  uses: docker://ghcr.io/jamesarch/createrepo-rs:latest
+# GitHub Actions — GHCR 镜像
+- name: Generate RPM repository metadata (GHCR)
+  uses: docker://ghcr.io/jamesarch/createrepo-rs:0.1.9
   with:
     args: ./rpms --baseurl=https://repo.example.com --compress-type=zstd
 ```
 
 ```yaml
-# GitLab CI
-generate-repodata:
-  image: jamesarch/createrepo-rs:latest
-  script:
-    - createrepo_rs ./rpms --baseurl=https://repo.example.com
+# GitHub Actions — Docker Hub 镜像
+- name: Generate RPM repository metadata (Docker Hub)
+  uses: docker://jamesarch/createrepo-rs:0.1.9
+  with:
+    args: ./rpms --baseurl=https://repo.example.com --compress-type=zstd
 ```
+
+```yaml
+# GitLab CI — GHCR 镜像
+generate-repodata-ghcr:
+  image: ghcr.io/jamesarch/createrepo-rs:0.1.9
+  script:
+    - createrepo_rs ./rpms --baseurl=https://repo.example.com --compress-type=zstd
+```
+
+```yaml
+# GitLab CI — Docker Hub 镜像
+generate-repodata-dockerhub:
+  image: jamesarch/createrepo-rs:0.1.9
+  script:
+    - createrepo_rs ./rpms --baseurl=https://repo.example.com --compress-type=zstd
+```
+
+已发布的容器标签：
+
+- `0.1.9` — 精确发布版本
+- `0.1` — 当前 minor 线的最新 patch
+- `latest` — 最新发布版
+- `sha-<short-sha>` — 对应源码提交，便于追溯
 
 ## 📊 性能
 

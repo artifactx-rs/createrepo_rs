@@ -87,21 +87,46 @@ docker run --rm -v /path/to/rpms:/data jamesarch/createrepo-rs:0.1.9 /data
 
 ### CI/CD Integration
 
+Use either registry in CI. Pin a release tag for reproducible pipelines, or use `latest` when you want the newest published release.
+
 ```yaml
-# GitHub Actions — generate repo metadata after building RPMs
-- name: Generate RPM repository metadata
-  uses: docker://ghcr.io/jamesarch/createrepo-rs:latest
+# GitHub Actions — GHCR image
+- name: Generate RPM repository metadata (GHCR)
+  uses: docker://ghcr.io/jamesarch/createrepo-rs:0.1.9
   with:
     args: ./rpms --baseurl=https://repo.example.com --compress-type=zstd
 ```
 
 ```yaml
-# GitLab CI
-generate-repodata:
-  image: jamesarch/createrepo-rs:latest
-  script:
-    - createrepo_rs ./rpms --baseurl=https://repo.example.com
+# GitHub Actions — Docker Hub image
+- name: Generate RPM repository metadata (Docker Hub)
+  uses: docker://jamesarch/createrepo-rs:0.1.9
+  with:
+    args: ./rpms --baseurl=https://repo.example.com --compress-type=zstd
 ```
+
+```yaml
+# GitLab CI — GHCR image
+generate-repodata-ghcr:
+  image: ghcr.io/jamesarch/createrepo-rs:0.1.9
+  script:
+    - createrepo_rs ./rpms --baseurl=https://repo.example.com --compress-type=zstd
+```
+
+```yaml
+# GitLab CI — Docker Hub image
+generate-repodata-dockerhub:
+  image: jamesarch/createrepo-rs:0.1.9
+  script:
+    - createrepo_rs ./rpms --baseurl=https://repo.example.com --compress-type=zstd
+```
+
+Published container tags:
+
+- `0.1.9` — exact release version
+- `0.1` — latest patch for the minor line
+- `latest` — latest release
+- `sha-<short-sha>` — source commit traceability
 
 ## 📊 Performance
 
