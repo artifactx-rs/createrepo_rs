@@ -9,7 +9,7 @@
 
 Drop-in replacement for the C version with **identical output, zero FFI, 3.5MB static binary.**
 
-> #####  Production-tested on Zabbix 7.2, 80-core, Debian 13. Powers [mirrors.feikua.com](https://mirrors.feikua.com).
+> #####  Production-tested on Zabbix 7.2, 80-core, Debian 13.
 
 ## 🎯 Why createrepo_rs?
 
