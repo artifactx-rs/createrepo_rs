@@ -52,6 +52,73 @@ jobs:
           strip target/x86_64-unknown-linux-musl/release/createrepo_rs
           cp target/x86_64-unknown-linux-musl/release/createrepo_rs createrepo_rs-x86_64-unknown-linux-musl
 
+      - name: Build vendored tarball (for COPR)
+        run: |
+          VERSION="${{ inputs.tag || github.ref_name }}"
+          VERSION="${VERSION#v}"
+          TARBALL="createrepo-rs-${VERSION}-vendored.tar.gz"
+
+          # Vendor all crate dependencies
+          cargo vendor
+
+          # Create .cargo/config.toml for offline builds
+          mkdir -p .cargo
+          cat > .cargo/config.toml << EOFCFG
+          [source.crates-io]
+          replace-with = "vendored-sources"
+
+          [source.vendored-sources]
+          directory = "vendor"
+          EOFCFG
+
+          # Create vendored tarball (must extract to createrepo_rs-{VERSION}/ for COPR spec)
+          # git ls-files includes all tracked files; add vendor/ and .cargo/ explicitly
+          tar czf "${TARBALL}" \
+            --transform "s,^,createrepo_rs-${VERSION}/," \
+            $(git ls-files) vendor/ .cargo/
+
+          echo "vendored_tarball=${TARBALL}" >> $GITHUB_ENV
+
+      - name: Build Debian source package
+        run: |
+          VERSION="${{ inputs.tag || github.ref_name }}"
+          VERSION="${VERSION#v}"
+          PKG="createrepo-rs"
+          SRC_DIR="/tmp/${PKG}-${VERSION}"
+
+          # Create source directory with Debian-compatible naming (hyphens)
+          mkdir -p "${SRC_DIR}"
+          # Copy all tracked files into the Debian-named source dir
+          git ls-files -z | xargs -0 -I{} cp --parents "{}" "${SRC_DIR}/"
+
+          # Copy debian packaging files into the source
+          cp -r packaging/debian "${SRC_DIR}/debian"
+
+          cd "${SRC_DIR}"
+
+          # Build source package (unsigned — user signs and uploads to mentors)
+          dpkg-source --build . 2>&1 || true
+
+          # dpkg-source with format 3.0 (quilt) creates files in parent dir
+          cd /tmp
+
+          # List what we got
+          ls -la *.dsc *.orig.tar.* *.debian.tar.* 2>/dev/null || true
+
+          # Copy artifacts to workspace
+          cp *.dsc *.orig.tar.* *.debian.tar.* *.buildinfo *.changes "${GITHUB_WORKSPACE}/" 2>/dev/null || true
+
+          cd "${GITHUB_WORKSPACE}"
+          ls -la *.dsc *.orig.tar.* *.debian.tar.* 2>/dev/null || true
+
+          # Set env vars for publish step
+          DSC_FILE=$(ls *.dsc 2>/dev/null | head -1)
+          ORIG_FILE=$(ls *.orig.tar.* 2>/dev/null | head -1)
+          DEBIAN_FILE=$(ls *.debian.tar.* 2>/dev/null | head -1)
+          echo "dsc_file=${DSC_FILE}" >> $GITHUB_ENV
+          echo "orig_file=${ORIG_FILE}" >> $GITHUB_ENV
+          echo "debian_tar_file=${DEBIAN_FILE}" >> $GITHUB_ENV
+
       - name: Build .deb package
         run: |
           VERSION="${{ inputs.tag || github.ref_name }}"
@@ -162,3 +229,7 @@ jobs:
             createrepo_rs-x86_64-unknown-linux-musl
             ${{ env.deb_file }}
             ${{ env.rpm_file }}
+            ${{ env.vendored_tarball }}
+            ${{ env.dsc_file }}
+            ${{ env.orig_file }}
+            ${{ env.debian_tar_file }}
