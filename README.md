@@ -9,6 +9,8 @@
 
 Drop-in replacement for the C version with **identical output, zero FFI, 3.5MB static binary.**
 
+[中文文档](README_zh.md)
+
 > #####  Production-tested on Zabbix 7.2, 80-core, Debian 13.
 
 ## 🎯 Why createrepo_rs?
