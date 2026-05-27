@@ -5,13 +5,13 @@ Summary:        Pure Rust RPM repository metadata generator
 
 License:        GPL-2.0-or-later
 URL:            https://github.com/jamesarch/createrepo_rs
-Source0:        %{url}/archive/v%{version}/createrepo_rs-%{version}.tar.gz
+Source0:        %{url}/releases/download/v%{version}/createrepo-rs-%{version}-vendored.tar.gz
 
 BuildRequires:  cargo
 BuildRequires:  rust >= 1.76
+BuildRequires:  make
 
-# Optional: for musl static builds
-# BuildRequires:  rust-std-static
+# Rust deps are vendored — no network access needed during build
 
 %description
 createrepo-rs is a pure Rust implementation of createrepo_c that generates
@@ -48,5 +48,5 @@ install -D -m 0755 target/release/createrepo_rs %{buildroot}%{_bindir}/createrep
 %doc README.md README_zh.md
 
 %changelog
-* Tue May 27 2026 jamesarch - 0.1.8-1
+* Wed May 27 2026 jamesarch <han.shan@live.cn> - 0.1.8-1
 - Initial package
