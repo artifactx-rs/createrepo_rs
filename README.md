@@ -22,7 +22,7 @@ Drop-in replacement for the C version with **identical output, zero FFI, 3.5MB s
 | Memory safety | ❌ manual malloc/free | ✅ borrow checker |
 | Cross-compile | painful | `cargo zigbuild` |
 | Thread safety | ⚠️ prone to races | ✅ `Send + Sync` everywhere |
-| NFS resilience | ❌ hangs on I/O stall | ✅ `--timeout` watchdog |
+| I/O timeout protection | ❌ | ✅ `--timeout` watchdog |
 | `dnf` compatible | ✅ | ✅ **verified** |
 | Manifest scan | ❌ | ✅ `--dump-manifest` 0.08s |
 | Signature detection | ❌ need `rpm -K` | ✅ built-in |
@@ -94,7 +94,7 @@ Benchmarks on Zabbix production server (Debian 13, 80-core, 254 RPMs):
 - ✅ In-memory SQLite — writes at RAM speed, flushes at finish via `VACUUM INTO`
 - ✅ `--no-database` to skip SQLite entirely
 - ✅ Multi-threaded RPM parsing (auto-detects CPU count)
-- ✅ NFS-safe `--timeout=N` watchdog with graceful shutdown
+- ✅ `--timeout=N` watchdog for stuck I/O (network mounts, dead disks)
 - ✅ `--dump-manifest` — parallel JSON-lines package inventory with signature detection
 - ✅ Graceful Ctrl+C handling, worker panic recovery (`catch_unwind`)
 - ✅ `--update` incremental mode with Arc\<Package\> cache
@@ -130,7 +130,7 @@ Key flags:
 | Flag | Description |
 |------|-------------|
 | `--workers=N` | Parallel threads (default: all CPUs) |
-| `--timeout=N` | Global timeout in seconds (NFS safety) |
+| `--timeout=N` | Global timeout in seconds (stuck I/O protection) |
 | `--dump-manifest` | JSON-lines package inventory + signature check |
 | `--compress-type=zstd` | Compression algorithm |
 | `--no-database` | Skip SQLite generation |
@@ -161,7 +161,7 @@ insert_package() ──► RAM (RefCell<Connection>) ──► VACUUM INTO repom
                     O(1) per INSERT              O(1) at finish()
 ```
 
-Traditional approaches write each package in a separate transaction with diskfsync. Our approach: single in-memory connection, all tables in one DB, atomic flush at the end. Result: **60× faster SQLite writes**.
+Traditional approaches write each package in a separate transaction with disk fsync. Our approach: single in-memory connection, all tables in one DB, atomic flush at the end.
 
 ### `--dump-manifest` (v0.1.7)
 
@@ -323,7 +323,7 @@ The [`prelude`] module re-exports all commonly used types:
 - Single connection for all three tables (primary, filelists, other)
 - Removed ~120 lines of per-struct boilerplate
 
-### v0.1.5 — NFS hang fixes
+### v0.1.5 — I/O timeout protection
 - `--timeout` watchdog thread with forced exit
 - `recv_timeout(300s)` on result collection (was blocking `recv()`)
 - `send_timeout(30s)` on job submission (was blocking `send()`)
@@ -332,9 +332,9 @@ The [`prelude`] module re-exports all commonly used types:
 - Proper SQLite `transaction()` with auto-rollback
 
 ### v0.1.4 — Initial public release
-- 5× faster than createrepo_c on macOS M1
 - 52/55 CLI parameters
 - `dnf` compatible (verified with Docker integration test)
+- Byte-identical XML output to createrepo_c
 
 ## 📝 License
 
