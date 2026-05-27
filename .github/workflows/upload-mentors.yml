@@ -1,0 +1,72 @@
+name: Upload to Debian Mentors
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'GitHub release tag containing Debian source artifacts (e.g. v0.1.9)'
+        required: true
+        type: string
+      debian_version:
+        description: 'Debian package version to upload (e.g. 0.1.9-2)'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  upload:
+    name: dput ${{ inputs.debian_version }} to mentors.debian.net
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      DEBIAN_GPG_PRIVATE_KEY: ${{ secrets.DEBIAN_GPG_PRIVATE_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dput
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq dput ca-certificates gnupg
+
+      - name: Download signed Debian source artifacts
+        env:
+          DEBIAN_VERSION: ${{ inputs.debian_version }}
+        run: |
+          mkdir -p upload
+          UPSTREAM_VERSION="${DEBIAN_VERSION%-*}"
+          gh release download "${{ inputs.tag }}" \
+            --repo "${{ github.repository }}" \
+            --dir upload \
+            --pattern "createrepo-rs_${DEBIAN_VERSION}*" \
+            --pattern "createrepo-rs_${UPSTREAM_VERSION}.orig.tar.gz" \
+            --clobber
+          ls -la upload
+
+      - name: Import signing key for local dput verification
+        run: |
+          GNUPGHOME="$(mktemp -d)"
+          export GNUPGHOME
+          chmod 700 "$GNUPGHOME"
+          printf '%s' "$DEBIAN_GPG_PRIVATE_KEY" | gpg --batch --import
+          echo "GNUPGHOME=$GNUPGHOME" >> "$GITHUB_ENV"
+
+      - name: Configure dput mentors target
+        run: |
+          cat > dput.cf <<'EODPUT'
+          [mentors]
+          fqdn = mentors.debian.net
+          incoming = /upload
+          method = https
+          allow_unsigned_uploads = 0
+          progress_indicator = 2
+          allowed_distributions = .*
+          EODPUT
+
+      - name: Verify signatures and upload
+        run: |
+          cd upload
+          gpg --batch --verify "createrepo-rs_${{ inputs.debian_version }}.dsc"
+          gpg --batch --verify "createrepo-rs_${{ inputs.debian_version }}_source.changes"
+          dput -c ../dput.cf mentors "createrepo-rs_${{ inputs.debian_version }}_source.changes"
