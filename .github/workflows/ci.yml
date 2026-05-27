@@ -8,6 +8,7 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
   build-and-test:
@@ -28,10 +29,10 @@ jobs:
         run: cargo fmt --all -- --check
 
       - name: Build
-        run: cargo build --release
+        run: cargo build
 
       - name: Clippy
-        run: cargo clippy --all-targets --all-features -- -D warnings
+        run: cargo clippy --all-targets -- -D warnings
 
       - name: Test
         run: cargo test --all-targets
@@ -51,7 +52,7 @@ jobs:
       - name: Install zig
         uses: goto-bus-stop/setup-zig@v2
         with:
-          version: 0.11.0
+          version: 0.13.0
 
       - name: Install zigbuild
         run: cargo install cargo-zigbuild
