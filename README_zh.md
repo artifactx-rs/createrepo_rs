@@ -5,7 +5,7 @@
 [![CI](https://github.com/jamesarch/createrepo_rs/actions/workflows/ci.yml/badge.svg)](https://github.com/jamesarch/createrepo_rs/actions)
 [![crates.io](https://img.shields.io/crates/v/createrepo_rs.svg)](https://crates.io/crates/createrepo_rs)
 
-**纯 Rust 编写的 RPM 仓库元数据生成器** — 生成与 dnf / yum 兼容的 repodata（primary.xml、filelists.xml、other.xml、repomd.xml）。单一静态二进制，零 FFI 依赖，可直接替代 `createrepo_c`。
+**纯 Rust 编写的 RPM 仓库元数据生成器** — 生成与 dnf / yum 兼容的 repodata（primary.xml、filelists.xml、other.xml、repomd.xml）。单一静态二进制，零 FFI 依赖，可直接替代 `createrepo_c`——**输出逐字节一致，内存省 ~8×，依赖 5 个（C 版 53 个）**。
 
 [English](README.md)
 
@@ -140,6 +140,22 @@ generate-repodata-dockerhub:
 | **createrepo_rs** | **1.87s** | 1724% | 14M¹ |
 
 > ¹ 14M 包含 SQLite 数据库。使用 `--no-database` 后输出约 200K。
+
+createrepo_rs 在这里更快，是**因为**这台机器有 80 核而 createrepo_c 最多用 5 线程。
+在同等或低核数下两者持平——重写本身不是"更快"的卖点。
+
+### 可复现对照（[`benchmark/`](benchmark/)）
+
+一条 `docker run`，两个工具在同一容器内原生运行。10 核 aarch64，合成仓库：
+
+| 指标 | createrepo_c | createrepo_rs |
+|------|--------------|---------------|
+| 峰值内存（500 / 1k / 2k 包） | ~83 MB（恒定） | **10 / 12 / 20 MB — 省 4–8×** |
+| 共享库依赖 | 53 | **5** |
+| 输出（pkgid 集合） | 基准 | **各档逐字节一致** |
+
+墙钟耗时持平（核少时 createrepo_c 随仓库增大略占优）。持久且普适的优势是
+**内存、依赖体积、输出一致**——而非纯速度。
 
 ### 增量更新（热缓存，`--update --skip-stat`）
 
