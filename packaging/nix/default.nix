@@ -17,6 +17,8 @@ rustPlatform.buildRustPackage (finalAttrs: {
 
   cargoHash = "sha256-70KuriwRVWSRKpGMYF5kY0e1PA4lL7YSU5j8p7ojdgA=";
 
+  __structuredAttrs = true;
+
   meta = {
     description = "Pure Rust RPM repository metadata generator — dnf/yum-compatible, zero FFI";
     homepage = "https://github.com/jamesarch/createrepo_rs";
