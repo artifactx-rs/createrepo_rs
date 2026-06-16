@@ -5,7 +5,7 @@
 [![CI](https://github.com/jamesarch/createrepo_rs/actions/workflows/ci.yml/badge.svg)](https://github.com/jamesarch/createrepo_rs/actions)
 [![crates.io](https://img.shields.io/crates/v/createrepo_rs.svg)](https://crates.io/crates/createrepo_rs)
 
-**纯 Rust 编写的 RPM 仓库元数据生成器** — 生成与 dnf / yum 兼容的 repodata（primary.xml、filelists.xml、other.xml、repomd.xml）。单一静态二进制，零 FFI 依赖，可直接替代 `createrepo_c`——**输出逐字节一致，内存省 ~4×，依赖 5 个（C 版 53 个）**。
+**纯 Rust 编写的 RPM 仓库元数据生成器** — 生成与 dnf / yum 兼容的 repodata（primary.xml、filelists.xml、other.xml、repomd.xml），可直接替代 `createrepo_c`。**内存省 ~4× · 零 C 依赖 · 单一静态二进制 · 内置 `--dump-manifest`。** 输出逐字节一致，dnf/yum 视为等价仓库。
 
 [English](README.md)
 

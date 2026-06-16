@@ -5,7 +5,7 @@
 [![CI](https://github.com/jamesarch/createrepo_rs/actions/workflows/ci.yml/badge.svg)](https://github.com/jamesarch/createrepo_rs/actions)
 [![crates.io](https://img.shields.io/crates/v/createrepo_rs.svg)](https://crates.io/crates/createrepo_rs)
 
-Pure-Rust drop-in for `createrepo_c`. **Byte-identical output, ~4× less memory, 5 deps instead of 53.** Single static binary, zero FFI, parallel by default.
+Pure-Rust drop-in for `createrepo_c`. **~4× less memory · zero C dependencies · one static binary · built-in `--dump-manifest`.** Byte-identical output — dnf/yum see an equivalent repo.
 
 ```
 $ time createrepo_rs /srv/zabbix/ --dump-manifest   # 254 RPMs, 80 cores
