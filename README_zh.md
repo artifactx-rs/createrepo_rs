@@ -5,7 +5,7 @@
 [![CI](https://github.com/jamesarch/createrepo_rs/actions/workflows/ci.yml/badge.svg)](https://github.com/jamesarch/createrepo_rs/actions)
 [![crates.io](https://img.shields.io/crates/v/createrepo_rs.svg)](https://crates.io/crates/createrepo_rs)
 
-**纯 Rust 编写的 RPM 仓库元数据生成器** — 生成与 dnf / yum 兼容的 repodata（primary.xml、filelists.xml、other.xml、repomd.xml）。单一静态二进制，零 FFI 依赖，可直接替代 `createrepo_c`——**输出逐字节一致，内存省 ~8×，依赖 5 个（C 版 53 个）**。
+**纯 Rust 编写的 RPM 仓库元数据生成器** — 生成与 dnf / yum 兼容的 repodata（primary.xml、filelists.xml、other.xml、repomd.xml）。单一静态二进制，零 FFI 依赖，可直接替代 `createrepo_c`——**输出逐字节一致，内存省 ~4×，依赖 5 个（C 版 53 个）**。
 
 [English](README.md)
 
@@ -130,32 +130,31 @@ generate-repodata-dockerhub:
 
 ## 📊 性能
 
-基于 Zabbix 生产服务器实测（Debian 13，80 核，254 个 RPM 包）：
+可复现对照（[`benchmark/`](benchmark/)）——一条 `docker run`，两个工具在同一容器内
+原生运行，hyperfine 跑 5 轮。下列数据：10 核 aarch64，2000 个合成包。
 
-### 完整生成（254 个包，zstd 压缩）
+### 墙钟耗时 — 完整 repodata 生成
 
-| 工具 | 耗时 | CPU | 输出 |
-|------|------|-----|--------|
-| createrepo_c | 2.15s | 454% | 232K |
-| **createrepo_rs** | **1.87s** | 1724% | 14M¹ |
+| 命令 | 耗时 |
+|------|------|
+| createrepo_c（默认 5 worker） | **67 ms** |
+| createrepo_c（`--workers 10`） | 102 ms |
+| createrepo_rs（全核） | 82 ms |
 
-> ¹ 14M 包含 SQLite 数据库。使用 `--no-database` 后输出约 200K。
+这里 createrepo_c **最快**——比 createrepo_rs 快约 1.2×——而且此规模下增加 worker 数
+并不会更快。createrepo_c 默认 5 个 worker，可设 `--workers 1–100`，**不存在"5 线程
+上限"**。速度上请把两者视为相当，createrepo_c 往往略占优。
 
-createrepo_rs 在这里更快，是**因为**这台机器有 80 核而 createrepo_c 最多用 5 线程。
-在同等或低核数下两者持平——重写本身不是"更快"的卖点。
-
-### 可复现对照（[`benchmark/`](benchmark/)）
-
-一条 `docker run`，两个工具在同一容器内原生运行。10 核 aarch64，合成仓库：
+### createrepo_rs 真正的优势
 
 | 指标 | createrepo_c | createrepo_rs |
 |------|--------------|---------------|
-| 峰值内存（500 / 1k / 2k 包） | ~83 MB（恒定） | **10 / 12 / 20 MB — 省 4–8×** |
+| 峰值内存（2000 包） | ~84 MB | **20 MB — 省约 4×** |
 | 共享库依赖 | 53 | **5** |
-| 输出（pkgid 集合） | 基准 | **各档逐字节一致** |
+| 输出（pkgid 集合） | 基准 | **逐字节一致** |
+| 体积 | 72 KB 二进制 + 53 个 `.so` | 单一 3.8 MB 静态二进制，零 FFI |
 
-墙钟耗时持平（核少时 createrepo_c 随仓库增大略占优）。持久且普适的优势是
-**内存、依赖体积、输出一致**——而非纯速度。
+持久且普适的优势是**内存、依赖体积、输出一致**——而非纯速度。
 
 ### 增量更新（热缓存，`--update --skip-stat`）
 
@@ -172,15 +171,8 @@ createrepo_rs 在这里更快，是**因为**这台机器有 80 核而 createrep
 | 254 包 | **`--dump-manifest`** | **0.078s** | 80 |
 | 5 包 | 受限范围扫描 | 0.2s | 80 |
 
-### 80 核环境下的线程缩放
-
-| 线程数 | 完整生成 | 清单扫描 |
-|---------|---------------|---------------|
-| 1 | 10.5s | 10.5s |
-| 4 | 3.6s | 0.5s |
-| **80** (自动) | **1.87s** | **0.078s** ✓ |
-
-> createrepo_rs 默认自动使用全部 CPU。C 版本最多仅支持 5 个线程。
+createrepo_rs 默认在全部 CPU 上并行（`--workers N` 可指定线程数）。上面的清单
+扫描可替代 CI 流水线里的 `rpm -K` + `rpm -qp` 循环。
 
 ## 📦 功能特性
 

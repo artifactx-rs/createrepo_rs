@@ -32,7 +32,7 @@ same NEVRA and payload, so checksums are stable across machines and runs.
 ## Results
 
 Environment: Docker (`fedora:42`), 10-core **aarch64**, createrepo_c **1.2.0**
-vs createrepo_rs **0.1.8** (from crates.io). Reproduce with the commands above.
+vs createrepo_rs **0.1.9** (from crates.io). Reproduce with the commands above.
 
 | Metric | createrepo_c | createrepo_rs | Winner |
 |--------|--------------|---------------|--------|
@@ -53,11 +53,13 @@ vs createrepo_rs **0.1.8** (from crates.io). Reproduce with the commands above.
   size. This matters in constrained CI runners and containers.
 - **Footprint / packaging is the other real win**: 5 vs 53 shared libraries,
   one static binary, zero FFI to `librpm`/`libxml2`/`glib2`/`zchunk`.
-- **Wall-clock is roughly on par.** On this 10-core box createrepo_c pulls
-  slightly ahead as the package count grows. Note createrepo_c hardcodes 5
-  worker threads — on many-core machines createrepo_rs (uses all cores) may
-  close or reverse this; that needs verification on bigger hardware, so we do
-  **not** claim a speed win here.
+- **Wall-clock: createrepo_c is usually a touch faster, not slower.** On this
+  10-core box createrepo_c pulls ahead as the package count grows (≈1.2× at 2000
+  pkgs). createrepo_c does **not** hardcode 5 threads — it *defaults* to 5
+  workers and accepts `--workers 1–100`; in testing, raising it to `--workers 10`
+  made it *slower* at these sizes (worker spawn overhead), so its default is
+  already its best. createrepo_rs (all cores) lands between the two. We make
+  **no speed-win claim** — treat the two as comparable, createrepo_c often ahead.
 - **Correctness**: identical package-checksum sets at every size — a true
   drop-in, dnf/yum see the repos as equivalent.
 

@@ -16,10 +16,16 @@ gen-rpms.sh "$N" "$REPO"
 cbin="$(command -v createrepo_c)"
 rbin="$(command -v createrepo_rs)"
 
+# Parallelism: createrepo_rs uses all cores by default. createrepo_c defaults
+# to 5 workers but accepts --workers 1..100, so for an apples-to-apples
+# wall-clock we also run it at $(nproc) workers — createrepo_c is NOT pinned
+# to its 5-worker default here.
+NPROC="$(nproc)"
+
 echo
 echo "================ Environment ================"
 echo "arch:          $(uname -m)"
-echo "CPUs:          $(nproc)"
+echo "CPUs:          $NPROC"
 echo "createrepo_c:  $(createrepo_c --version 2>&1 | head -1)"
 echo "createrepo_rs: $(createrepo_rs --version 2>&1 | head -1)"
 
@@ -36,18 +42,23 @@ printf "%-16s %-14s %-14s\n" "binary size" "$csize"       "$rsize"
 printf "%-16s %-14s %-14s\n" "shared libs" "$cdeps"       "$rdeps"
 
 # ---- wall-clock ----
+# Three columns so nobody can claim createrepo_c was sandbagged:
+#   createrepo_c            — its out-of-the-box default (5 workers)
+#   createrepo_c -w NPROC   — matched parallelism (same core budget as rs)
+#   createrepo_rs           — default (all cores)
 echo
 echo "================ Wall-clock ($N pkgs, 5 runs) ================"
 hyperfine -w1 -r5 \
   --prepare "rm -rf $REPO/repodata" \
-  --command-name createrepo_c  "createrepo_c $REPO" \
-  --command-name createrepo_rs "createrepo_rs $REPO"
+  --command-name "createrepo_c (default 5w)"   "createrepo_c $REPO" \
+  --command-name "createrepo_c (-w $NPROC)"    "createrepo_c --workers $NPROC $REPO" \
+  --command-name "createrepo_rs (all cores)"   "createrepo_rs $REPO"
 
 # ---- peak RSS ----
 echo
 echo "================ Peak RSS ================"
 rm -rf "$REPO/repodata"
-cmem="$(/usr/bin/time -v createrepo_c  "$REPO" 2>&1 | awk '/Maximum resident/{print $NF}')"
+cmem="$(/usr/bin/time -v createrepo_c --workers "$NPROC" "$REPO" 2>&1 | awk '/Maximum resident/{print $NF}')"
 rm -rf "$REPO/repodata"
 rmem="$(/usr/bin/time -v createrepo_rs "$REPO" 2>&1 | awk '/Maximum resident/{print $NF}')"
 printf "createrepo_c:  %'d KB\ncreaterepo_rs: %'d KB\n" "$cmem" "$rmem" 2>/dev/null \

@@ -5,20 +5,18 @@
 [![CI](https://github.com/jamesarch/createrepo_rs/actions/workflows/ci.yml/badge.svg)](https://github.com/jamesarch/createrepo_rs/actions)
 [![crates.io](https://img.shields.io/crates/v/createrepo_rs.svg)](https://crates.io/crates/createrepo_rs)
 
-Pure-Rust drop-in for `createrepo_c`. **Byte-identical output, ~8× less memory, 5 deps instead of 53.** Single static binary, zero FFI, parallel by default.
+Pure-Rust drop-in for `createrepo_c`. **Byte-identical output, ~4× less memory, 5 deps instead of 53.** Single static binary, zero FFI, parallel by default.
 
 ```
 $ time createrepo_rs /srv/zabbix/ --dump-manifest   # 254 RPMs, 80 cores
 real    0m0.078s   ← was 10.5s with rpm -K loop (130×, manifest scan)
-
-$ time createrepo_rs /srv/zabbix/                   # full repodata gen, 80 cores
-real    0m1.87s    ← createrepo_c 2.15s here (it caps at 5 threads; rs uses all 80)
 ```
 
-> Speed is **on par** with createrepo_c — the rewrite wins on full-gen only where
-> many cores beat its 5-thread cap. The durable, universal wins are **memory
-> (~4–8× less)**, **dependencies (5 vs 53)**, and **byte-identical output**, all
-> reproducible in one `docker run` — see [`benchmark/`](benchmark/).
+> Speed is **comparable** to createrepo_c — in a controlled benchmark createrepo_c
+> is often a touch faster (it defaults to 5 workers; `--workers` accepts 1–100).
+> createrepo_rs is **not** a speed play. The durable wins are **memory (~4× less)**,
+> **dependencies (5 vs 53)**, and **byte-identical output** — all reproducible in
+> one `docker run`, see [`benchmark/`](benchmark/).
 
 > Production-tested: Zabbix 7.2 mirror, Debian 13, 80-core. Ships in COPR / AUR / Debian.
 
@@ -43,7 +41,7 @@ The result ships as a 3.5 MB musl static binary with no runtime dependencies.
 |---|---|---|
 | Dependencies | librpm, libxml2, glib2, zchunk... | **zero FFI** — pure Rust crates |
 | Binary | ~200KB + shared libs | **3.5MB musl static** |
-| Max workers | 5 (hardcoded) | all CPUs (auto) |
+| Default workers | 5 (`--workers 1–100`) | all CPUs (auto) |
 | Memory safety | manual malloc/free | borrow checker |
 | Peak memory | ~83 MB | **4–8× less** (10–20 MB) |
 | Output | (reference) | **byte-identical, verified** |
@@ -115,33 +113,34 @@ Container tags: `latest` · `0.1.9` · `0.1` · `sha-<short-sha>`
 
 ## Performance
 
-Benchmarks on Zabbix production server (Debian 13, 80-core, 254 RPMs):
+Reproducible head-to-head ([`benchmark/`](benchmark/)) — one `docker run`, both
+tools native in the same container, [hyperfine](https://github.com/sharkdp/hyperfine)
+(5 runs). Numbers below: 10-core aarch64, 2000 synthetic packages.
 
-### Full repodata generation (zstd)
+### Wall-clock — full repodata generation
 
-| Tool | Time | CPU |
-|------|------|-----|
-| createrepo_c | 2.15s | 454% (capped at 5 workers) |
-| **createrepo_rs** | **1.87s** | 1724% (all 80 cores) |
+| Command | Time |
+|---------|------|
+| createrepo_c (default, 5 workers) | **67 ms** |
+| createrepo_c (`--workers 10`) | 102 ms |
+| createrepo_rs (all cores) | 82 ms |
 
-createrepo_rs wins here *because* this box has 80 cores and createrepo_c caps at
-5 threads. On equal or low core counts the two are on par — the rewrite itself
-is not a speed story.
+createrepo_c is the **fastest** here — ~1.2× faster than createrepo_rs — and
+raising its worker count doesn't help at this repo size. createrepo_c defaults to
+5 workers and accepts `--workers 1–100`; there is no "5-thread cap." **Treat the
+two as comparable on speed, with createrepo_c often slightly ahead.**
 
-### Reproducible head-to-head ([`benchmark/`](benchmark/))
-
-One `docker run`, both tools native in the same container. 10-core aarch64,
-synthetic repos:
+### What createrepo_rs actually wins
 
 | Metric | createrepo_c | createrepo_rs |
 |--------|--------------|---------------|
-| Peak RSS (500 / 1k / 2k pkgs) | ~83 MB (flat) | **10 / 12 / 20 MB — 4–8× less** |
+| Peak RSS (2000 pkgs) | ~84 MB | **20 MB — ~4× less** |
 | Shared libraries | 53 | **5** |
-| Output (pkgid set) | reference | **byte-identical at every size** |
+| Output (pkgid set) | reference | **byte-identical** |
+| Footprint | 72 KB binary + 53 `.so` | single 3.8 MB static binary, zero FFI |
 
-Wall-clock there is on par (createrepo_c edges ahead as the repo grows on few
-cores). The durable, universal wins are **memory, dependency footprint, and
-identical output** — not raw speed.
+The durable, universal wins are **memory, dependency footprint, and identical
+output** — not raw speed.
 
 ### `--dump-manifest` — parallel package inventory scan
 
@@ -162,13 +161,8 @@ $ createrepo_rs /srv/repo --dump-manifest
 ...
 ```
 
-### Worker scaling (full gen, 80-core)
-
-| Workers | Time |
-|---------|------|
-| 1 | 10.5s |
-| 4 | 3.6s |
-| **80 (auto)** | **1.87s** |
+createrepo_rs parallelises across all cores by default (`--workers N` to pin a
+count). The scan above replaces `rpm -K` + `rpm -qp` loops in CI pipelines.
 
 ---
 
